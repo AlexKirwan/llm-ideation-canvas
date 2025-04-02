@@ -28,7 +28,17 @@ export default function Canvas() {
   const [apiSecret, setApiSecret] = useState('');
   
   // Add event listener for opening API config from chat error
+  // and load API secret from localStorage when component mounts
   useEffect(() => {
+    // Load API secret from localStorage
+    if (typeof window !== 'undefined') {
+      const savedSecret = localStorage.getItem('apiSecret');
+      if (savedSecret) {
+        setApiSecret(savedSecret);
+        console.log('API Secret loaded from localStorage');
+      }
+    }
+    
     const handleOpenApiConfig = () => {
       setShowApiSecret(true);
     };
@@ -42,7 +52,11 @@ export default function Canvas() {
   
   // Function to save API secret
   const handleSaveApiSecret = () => {
-    // Store API secret in Firestore when we have proper user management
+    // Save to localStorage
+    if (typeof window !== 'undefined' && apiSecret) {
+      localStorage.setItem('apiSecret', apiSecret);
+      console.log('API Secret saved to localStorage');
+    }
     setShowApiSecret(false);
   };
   
@@ -523,7 +537,7 @@ export default function Canvas() {
           <div className="space-y-3">
             <div className="flex flex-col gap-1">
               <label htmlFor="apiSecret" className="text-sm font-medium">
-                Code
+                API Secret Key
               </label>
               <input
                 id="apiSecret"
@@ -531,8 +545,13 @@ export default function Canvas() {
                 value={apiSecret}
                 onChange={(e) => setApiSecret(e.target.value)}
                 className="border border-gray-300 rounded p-2 w-full bg-white text-gray-900"
-                placeholder="...."
+                placeholder="Enter the API secret..."
               />
+              <div className="text-xs text-gray-500 mt-1">
+                Enter the API secret provided by your administrator.
+                <br />
+                This must match the API_SECRET environment variable set in Vercel.
+              </div>
             </div>
             <div className="flex justify-end pt-2 gap-2">
               <button
