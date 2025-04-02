@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, MouseEvent as ReactMouseEvent, useRef, useEffect, useMemo } from 'react';
+import { useState, MouseEvent as ReactMouseEvent, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { DraggableEvent } from 'react-draggable';
 import type { DraggableData } from 'react-draggable';
 import { Rnd } from 'react-rnd';
 import { useCanvasStore } from '../../store/canvasStore';
 import SystemPromptEditor from '../SystemPromptEditor';
 import VerseComponent from './VerseComponent';
-import type { Verse as VerseType } from '../../types';
+import type { Verse as VerseType, PostItData } from '../../types';
 import type { SystemMapData } from '../SystemMap/SystemMap';
 import type { BoardCard } from '../Board';
 import { availableModels } from '../../types';
@@ -30,7 +30,12 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
     addComponent,
     updateBoardCards,
     updateSystemMapData,
-    updateVerseName
+    updateVerseName,
+    removeComponent,
+    updateComponentPosition,
+    updateComponentSize,
+    updatePostItText,
+    updatePostItColor
   } = useCanvasStore();
   
   const [showSystemPromptEditor, setShowSystemPromptEditor] = useState(false);
@@ -48,19 +53,58 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
   // State for message-level branching
   const [branchMessageId, setBranchMessageId] = useState<string | null>(null);
   
+  // State for PostIt editing
+  const [editingPostItId, setEditingPostItId] = useState<string | null>(null);
+  const [postItEditText, setPostItEditText] = useState('');
+  
   // Update local name state when verse name changes externally
   useEffect(() => {
     setVerseName(verse.name || `Verse ${verse.id.slice(0, 4)}`);
   }, [verse.name, verse.id]);
   
-  // Function to handle message branching
-  const handleBranchFromMessage = (messageId: string) => {
+  // One-time initialization: add a PostIt if there isn't one already
+  useEffect(() => {
+    const addPostItIfNeeded = () => {
+      // Check if a PostIt already exists
+      const hasPostIt = verse.components.some(comp => comp.type === 'postIt');
+      
+      // Add a default PostIt if none exists
+      if (!hasPostIt) {
+        
+        // Calculate default position (to the right of the chat window)
+        // First find the chat component to position relative to it
+        const chatComponent = verse.components.find(c => c.type === 'chat');
+        
+        // Position to the right of the chat window with a small gap
+        const defaultPosition = chatComponent ? {
+          x: chatComponent.position.x + chatComponent.size.width + 40, // 20px gap
+          y: chatComponent.position.y
+        } : {
+          x: 350, // Fallback position if no chat component found
+          y: 20
+        };
+        
+        // Add a PostIt component
+        addComponent(verse.id, 'postIt', defaultPosition, {
+          text: 'Elements could be added to this workspace specifc to the context within this verse',
+          color: '#FFFF88' // Yellow color
+        });
+      }
+    };
+    
+    // Slight delay to ensure verse is fully loaded
+    const timer = setTimeout(addPostItIfNeeded, 100);
+    return () => clearTimeout(timer);
+  }, [verse.id, verse.components.length, verse.components, addComponent]);
+  
+  // Function to handle message branching - wrap in useCallback to avoid dependency warnings
+  const handleBranchFromMessage = useCallback((messageId: string) => {
     console.log('Verse received branch request for message:', messageId);
     // Store the message ID and show model picker
     setBranchMessageId(messageId);
     setSelectedBranchModel(verse.modelId);
     setShowModelPicker(true);
-  };
+  }, [verse.modelId]);
   
   // Listen for branchFromMessage event
   useEffect(() => {
@@ -86,7 +130,7 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
     return () => {
       document.removeEventListener('branchFromMessage', handleBranchEvent);
     };
-  }, [verse.id, verse.chatHistory, verse.modelId]);
+  }, [verse.id, verse.chatHistory, verse.modelId, handleBranchFromMessage]);
 
   const handleDragStop = (_e: DraggableEvent, d: DraggableData) => {
     // Convert position to account for canvas zoom and position
@@ -104,10 +148,8 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
     _e: MouseEvent | TouchEvent, 
     _direction: string, 
     ref: HTMLElement,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-    _delta: any,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-    _position: any
+    _delta: unknown,
+    _position: unknown
   ) => {
     // Convert the visual size back to logical size based on zoom level
     // This ensures when you resize at 1% zoom, you're resizing the actual size accordingly
@@ -404,8 +446,8 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
         width: verse.size.width * canvasZoom,
         height: verse.size.height * canvasZoom
       }}
-      className={`verse bg-gray-50 dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden border-2 border-dashed  
-                 transition-shadow ${isActive ? 'shadow-xl border-black dark:border-black' : 'border-gray-400 dark:border-gray-700'}`}
+      className={`verse bg-gray-50 rounded-lg shadow-lg overflow-hidden border-2 border-dashed  
+                 transition-shadow ${isActive ? 'shadow-xl border-black' : 'border-gray-400'}`}
       style={{
         zIndex: 10 + verse.zIndex, // Ensure verses are above connection lines (z-index: 5) but maintain relative order
       }}
@@ -433,17 +475,17 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
     >
       <div className="w-full h-full flex flex-col">
         {/* Workspace header with absolute positioning to ensure it's always visible */}
-        <div className="verse-header flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 cursor-move border-b border-gray-300 dark:border-gray-700 z-20 relative">
+        <div className="verse-header flex items-center justify-between p-2 bg-gray-100 cursor-move border-b border-gray-300 z-20 relative">
           <div className="text-sm font-medium flex items-center gap-1 overflow-hidden">
             {verse.parentId && (
-              <span className="text-xs px-1 py-0.5 bg-blue-100 dark:bg-blue-900 rounded text-blue-700 dark:text-blue-300 shrink-0 mr-1">
+              <span className="text-xs px-1 py-0.5 bg-blue-100 rounded text-blue-700 shrink-0 mr-1">
                 Branch
               </span>
             )}
             <span className={`text-xs px-1 py-0.5 rounded shrink-0 mr-1 ${
               (verse.modelId || '').includes('claude') 
-                ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' 
-                : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                ? 'bg-purple-100 text-purple-700' 
+                : 'bg-blue-100 text-blue-700'
             }`} title={`Using ${modelName}`}>
               {(verse.modelId || '').includes('claude') ? 'Claude' : 'GPT'}
             </span>
@@ -455,13 +497,13 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
                 onChange={(e) => setVerseName(e.target.value)}
                 onBlur={handleNameSave}
                 onKeyDown={handleNameKeyDown}
-                className="px-1 py-0.5 text-sm bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-full max-w-[200px]"
+                className="px-1 py-0.5 text-sm bg-white border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-full max-w-[200px]"
                 autoFocus
               />
             ) : (
               <div 
                 onClick={handleNameClick}
-                className="px-1 py-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-text truncate max-w-[200px]"
+                className="px-1 py-0.5 hover:bg-gray-200 rounded cursor-text truncate max-w-[200px]"
                 title="Click to edit verse name"
               >
                 {verse.name || `Verse ${verse.id.slice(0, 4)}`}
@@ -469,10 +511,59 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
             )}
           </div>
           <div className="flex items-center gap-1">
-            
             <button
               type="button"
-              className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900 text-green-600"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Adding PostIt note to verse:', verse.id);
+                
+                // Position to the right of the chat window
+                const chatComponent = verse.components.find(c => c.type === 'chat');
+                const position = chatComponent ? {
+                  x: chatComponent.position.x + chatComponent.size.width + 20, // 20px gap
+                  y: chatComponent.position.y
+                } : {
+                  x: 350, // Fallback position
+                  y: 20
+                };
+                
+                addComponent(verse.id, 'postIt', position, {
+                  text: '',
+                  color: '#FFFF88' // Yellow color
+                });
+                
+                // Force re-render
+                setActiveVerse(verse.id);
+              }}
+              title="Add new PostIt note"
+              style={{
+                width: '24px',
+                height: '24px',
+                padding: 0,
+                margin: 0,
+                marginRight: '4px',
+                background: '#FFFF88',
+                border: 'none',
+                boxShadow: '1px 1px 2px rgba(0,0,0,0.2)',
+                transform: 'rotate(-2deg)',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              className="hover:opacity-80 transition-opacity"
+            >
+              <span style={{ 
+                fontWeight: 'bold', 
+                fontSize: '16px', 
+                lineHeight: 1, 
+                color: '#555'
+              }}>+</span>
+            </button>
+            <button
+              type="button"
+              className="p-1 rounded hover:bg-green-100 text-green-600"
               onClick={handleSystemPromptClick}
               title="Edit system prompt"
             >
@@ -483,7 +574,7 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
             </button>
             <button
               type="button"
-              className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-600"
+              className="p-1 rounded hover:bg-blue-100 text-blue-600"
               onClick={handleBranch}
               title="Branch from this verse"
             >
@@ -497,7 +588,7 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
             </button>
             <button 
               type="button"
-              className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900 text-red-500"
+              className="p-1 rounded hover:bg-red-100 text-red-500"
               onClick={handleClose}
             >
               ✕
@@ -505,23 +596,155 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
           </div>
         </div>
         
-        {/* Content area - acts as a fixed frame that clips its contents */}
-        <div className="flex-1 overflow-hidden relative mt-0">
+        {/* Content area */}
+        <div className="flex-1 relative mt-0" style={{ overflow: 'visible' }}>
           <div 
             ref={contentRef}
-            className="h-full m-1 rounded relative overflow-hidden"
+            className="h-full w-full rounded relative"
+            style={{ position: 'relative', overflow: 'visible' }}
           >
-            {/* Content container - simple container without transforms */}
-            <div className="absolute inset-0 overflow-hidden">
-              {/* Render all components */}
-              {verse.components.map(component => (
-                <VerseComponent
-                  key={component.id}
-                  verseId={verse.id}
-                  component={component}
-                />
-              ))}
-            </div>
+            {/* Each component is absolutely positioned within this container */}
+            {(() => {
+              // Debug info: Log all components in this verse
+              console.log('All components in verse:', verse.id, verse.components);
+              
+              // Check if there's a PostIt component in this verse
+              const hasPostIt = verse.components.some(comp => comp.type === 'postIt');
+              
+              // Log whether verse has a PostIt
+              console.log(`Verse ${verse.id} ${hasPostIt ? 'has' : 'does NOT have'} a PostIt component`);
+              
+              // EMERGENCY DIRECT RENDER TEST - Add a fixed red box
+              return (
+                <>
+                  {/* No fixed test box needed anymore */}
+                  
+                  {/* Direct PostIt rendering */}
+                  {verse.components
+                    .filter(component => component.type === 'postIt')
+                    .map(component => (
+                      <Rnd
+                        key={component.id}
+                        position={{
+                          x: component.position.x,
+                          y: component.position.y
+                        }}
+                        size={{
+                          width: component.size.width,
+                          height: component.size.height
+                        }}
+                        onDragStop={(_, d) => {
+                          updateComponentPosition(verse.id, component.id, { x: d.x, y: d.y });
+                        }}
+                        onResizeStop={(_, __, ref, ___, position) => {
+                          updateComponentSize(verse.id, component.id, {
+                            width: parseInt(ref.style.width),
+                            height: parseInt(ref.style.height)
+                          });
+                          updateComponentPosition(verse.id, component.id, position);
+                        }}
+                        style={{
+                          backgroundColor: (component.data as PostItData)?.color || '#FFFF88',
+                          boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
+                          transform: 'rotate(-1deg)',
+                          zIndex: component.zIndex || 9000,
+                          borderRadius: '2px',
+                        }}
+                        minWidth={100}
+                        minHeight={100}
+                        bounds="parent"
+                      >
+                        <div 
+                          style={{
+                            padding: '10px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            width: '100%',
+                            height: '100%'
+                          }}
+                        >
+                          <div style={{ fontWeight: 'bold', marginBottom: '5px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Note</span>
+                            <button
+                              onClick={() => removeComponent(verse.id, component.id)}
+                              style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'red' }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div 
+                            style={{ 
+                              fontFamily: "'Comic Sans MS', cursive, sans-serif",
+                              overflow: 'auto',
+                              flexGrow: 1
+                            }}
+                          >
+                            {/* Create a separate editing state for each PostIt note */}
+                            {component.id === editingPostItId ? (
+                              <textarea
+                                autoFocus
+                                className="w-full h-full p-0 bg-transparent resize-none focus:outline-none"
+                                style={{ 
+                                  fontFamily: "'Comic Sans MS', cursive, sans-serif",
+                                  border: 'none'
+                                }}
+                                value={postItEditText}
+                                onChange={(e) => setPostItEditText(e.target.value)}
+                                onBlur={() => {
+                                  // Save text when focus is lost
+                                  if (editingPostItId) {
+                                    updatePostItText(verse.id, editingPostItId, postItEditText);
+                                    setEditingPostItId(null);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') {
+                                    setEditingPostItId(null);
+                                  } else if (e.key === 'Enter' && e.ctrlKey) {
+                                    // Save on Ctrl+Enter
+                                    if (editingPostItId) {
+                                      updatePostItText(verse.id, editingPostItId, postItEditText);
+                                      setEditingPostItId(null);
+                                    }
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <div 
+                                onClick={() => {
+                                  // Start editing on click
+                                  setEditingPostItId(component.id);
+                                  setPostItEditText((component.data as PostItData)?.text || '');
+                                }}
+                                style={{
+                                  cursor: 'text',
+                                  minHeight: '100%'
+                                }}
+                              >
+                                {(component.data as PostItData)?.text || 'Click to edit...'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </Rnd>
+                    ))}
+                  
+                  {/* Normal component rendering for non-PostIt components */}
+                  {verse.components
+                    .filter(component => component.type !== 'postIt')
+                    .map(component => {
+                      console.log('Rendering non-PostIt component in verse:', component.type, component.id);
+                      return (
+                        <VerseComponent
+                          key={component.id}
+                          verseId={verse.id}
+                          component={component}
+                        />
+                      );
+                    })}
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -537,7 +760,7 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
       {/* Model Picker Modal for Branching */}
       {showModelPicker && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-80 max-w-full">
+          <div className="bg-white p-4 rounded-lg shadow-lg w-80 max-w-full">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-medium text-lg">
                 {branchMessageId ? 'Branch from Message' : 'Branch Verse'}
@@ -547,14 +770,14 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
                   setShowModelPicker(false);
                   setBranchMessageId(null);
                 }}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                className="text-gray-500 hover:text-gray-700"
               >
                 ✕
               </button>
             </div>
             
             <div className="space-y-3">
-              <div className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+              <div className="mb-2 text-sm text-gray-500">
                 {branchMessageId ? (
                   <>
                     <p>Branching from a specific message. Only conversation history up to this message will be included.</p>
@@ -567,7 +790,7 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
               
               {/* Claude Models */}
               <div>
-                <h4 className="text-sm font-medium mb-2 text-purple-600 dark:text-purple-400">Claude Models</h4>
+                <h4 className="text-sm font-medium mb-2 text-purple-600">Claude Models</h4>
                 <div className="space-y-1">
                   {availableModels
                     .filter(model => model.provider === 'anthropic')
@@ -577,18 +800,18 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
                         onClick={() => setSelectedBranchModel(model.id)}
                         className={`p-2 rounded cursor-pointer flex items-center ${
                           selectedBranchModel === model.id 
-                            ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' 
-                            : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                            ? 'bg-purple-100 text-purple-800' 
+                            : 'hover:bg-gray-100'
                         }`}
                       >
                         <div className={`w-4 h-4 rounded-full mr-2 ${
                           selectedBranchModel === model.id 
-                            ? 'bg-purple-600 dark:bg-purple-400' 
-                            : 'border border-gray-400 dark:border-gray-500'
+                            ? 'bg-purple-600' 
+                            : 'border border-gray-400'
                         }`} />
                         <div>
                           <div className="font-medium">{model.name}</div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400">{model.description}</div>
+                          <div className="text-xs text-gray-600">{model.description}</div>
                         </div>
                       </div>
                     ))
@@ -598,7 +821,7 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
               
               {/* OpenAI Models */}
               <div>
-                <h4 className="text-sm font-medium mb-2 text-blue-600 dark:text-blue-400">GPT Models</h4>
+                <h4 className="text-sm font-medium mb-2 text-blue-600">GPT Models</h4>
                 <div className="space-y-1">
                   {availableModels
                     .filter(model => model.provider === 'openai')
@@ -608,18 +831,18 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
                         onClick={() => setSelectedBranchModel(model.id)}
                         className={`p-2 rounded cursor-pointer flex items-center ${
                           selectedBranchModel === model.id 
-                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' 
-                            : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'hover:bg-gray-100'
                         }`}
                       >
                         <div className={`w-4 h-4 rounded-full mr-2 ${
                           selectedBranchModel === model.id 
-                            ? 'bg-blue-600 dark:bg-blue-400' 
-                            : 'border border-gray-400 dark:border-gray-500'
+                            ? 'bg-blue-600' 
+                            : 'border border-gray-400'
                         }`} />
                         <div>
                           <div className="font-medium">{model.name}</div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400">{model.description}</div>
+                          <div className="text-xs text-gray-600">{model.description}</div>
                         </div>
                       </div>
                     ))
@@ -633,7 +856,7 @@ export default function Verse({ verse, canvasPosition, canvasZoom }: VerseProps)
                     setShowModelPicker(false);
                     setBranchMessageId(null);
                   }}
-                  className="px-3 py-1 rounded text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600"
+                  className="px-3 py-1 rounded text-gray-700 border border-gray-300"
                 >
                   Cancel
                 </button>

@@ -6,7 +6,9 @@ import { useCanvasStore } from '../../store/canvasStore';
 import ChatWindow from '../Chat/ChatWindow';
 import KanbanBoard from '../Board/KanbanBoard';
 import SystemMap from '../SystemMap/SystemMap';
+import PostIt from './PostIt';
 import type { VerseComponent as ComponentType } from '../../types';
+import type { PostItData } from '../../types';
 
 interface VerseComponentProps {
   verseId: string;
@@ -60,6 +62,7 @@ export default function VerseComponent({
   };
   
   const renderComponentContent = () => {
+    console.log('Rendering component of type:', component.type, 'with data:', component.data);
     switch (component.type) {
       case 'chat':
         return <ChatWindow verseId={verseId} />;
@@ -89,11 +92,25 @@ export default function VerseComponent({
             No data available for system map
           </div>
         );
+      case 'postIt':
+        return (
+          <PostIt 
+            verseId={verseId}
+            componentId={component.id}
+            data={component.data as PostItData}
+          />
+        );
       default:
         return <div>Unknown component type</div>;
     }
   };
 
+  // For PostIt notes, handle directly in the Verse component
+  if (component.type === 'postIt') {
+    return null;
+  }
+
+  // For all other components, use Rnd as before
   return (
     <Rnd
       ref={rndRef}
@@ -118,15 +135,18 @@ export default function VerseComponent({
       onClick={handleClick}
       style={{
         zIndex: component.zIndex,
+        position: 'absolute', // Ensure absolute positioning
+        visibility: 'visible', // Force visibility
+        display: 'block', // Force display
       }}
       dragHandleClassName="component-header"
       bounds="parent"
       minWidth={200}
       minHeight={200}
-      className="verse-component rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-600"
+      className="verse-component rounded-lg overflow-hidden border-2 border-gray-300"
     >
       <div className="w-full h-full flex flex-col">
-        <div className="component-header p-4 bg-blue-300 dark:bg-gray-800 cursor-move flex justify-between items-center">
+        <div className="component-header p-4 cursor-move flex justify-between items-center bg-blue-300">
           <div className="text-sm font-medium">
             {component.type === 'chat' 
               ? 'Chat' 
@@ -138,7 +158,7 @@ export default function VerseComponent({
             <div className="text-xs text-gray-500">Drag header to move</div>
           </div>
         </div>
-        <div className="flex-1 overflow-auto p-2">
+        <div className="flex-1 p-2 overflow-auto">
           {renderComponentContent()}
         </div>
       </div>

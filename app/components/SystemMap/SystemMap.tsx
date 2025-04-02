@@ -451,7 +451,7 @@ export default function SystemMap({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-lg overflow-auto">
+    <div className="h-full flex flex-col bg-white rounded-lg overflow-auto">
       <div className="flex justify-between items-center p-2 border-b">
         <h2 className="text-lg font-bold">System Map</h2>
         <div className="flex items-center gap-2">
@@ -469,7 +469,7 @@ export default function SystemMap({
           </div>
           <button 
             onClick={onClose}
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800"
+            className="p-1 rounded hover:bg-gray-200"
             title="Close system map"
           >
             ✕
@@ -522,7 +522,7 @@ export default function SystemMap({
         {/* Edit modal for labels */}
         {(editNode || editEdge) && (
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg">
+            <div className="bg-white p-4 rounded-lg shadow-lg">
               <h3 className="text-lg font-bold mb-2">
                 {editNode ? "Edit Node Label" : "Edit Edge Label"}
               </h3>
@@ -531,7 +531,7 @@ export default function SystemMap({
                   type="text"
                   value={editLabel}
                   onChange={handleLabelChange}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                  className="w-full p-2 border rounded"
                   autoFocus
                 />
                 <div className="flex justify-end gap-2 mt-4">
@@ -541,7 +541,7 @@ export default function SystemMap({
                       setEditNode(null);
                       setEditEdge(null);
                     }}
-                    className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded"
+                    className="px-3 py-1 bg-gray-200 rounded"
                   >
                     Cancel
                   </button>

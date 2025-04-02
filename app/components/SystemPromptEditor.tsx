@@ -63,14 +63,14 @@ export default function SystemPromptEditor({ verseId, onClose }: SystemPromptEdi
           ref={textareaRef}
           value={prompt}
           onChange={handleChange}
-          className="flex-1 min-h-[200px] p-3 border rounded-md dark:bg-gray-900 dark:border-gray-700 mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 min-h-[200px] p-3 border rounded-md mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Enter system instructions for Claude..."
         />
         
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:border-gray-700"
+            className="px-4 py-2 border rounded-md hover:bg-gray-100"
           >
             Cancel
           </button>

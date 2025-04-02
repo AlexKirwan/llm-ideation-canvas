@@ -37,7 +37,7 @@ export default function KanbanBoard({ cards, onClose, onCardMove }: KanbanBoardP
 
   const Card = ({ card }: { card: BoardCard }) => (
     <div
-      className="bg-white dark:bg-gray-800 p-3 rounded shadow mb-2 cursor-move"
+      className="bg-white p-3 rounded shadow mb-2 cursor-move"
       draggable
       onDragStart={() => handleDragStart(card.id)}
     >
@@ -57,7 +57,7 @@ export default function KanbanBoard({ cards, onClose, onCardMove }: KanbanBoardP
     color: string;
   }) => (
     <div 
-      className="flex-1 min-w-[250px] max-w-[350px] bg-gray-100 dark:bg-gray-900 rounded p-3"
+      className="flex-1 min-w-[250px] max-w-[350px] bg-gray-100 rounded p-3"
       onDragOver={handleDragOver}
       onDrop={() => handleDrop(columnId)}
     >
@@ -73,12 +73,12 @@ export default function KanbanBoard({ cards, onClose, onCardMove }: KanbanBoardP
   );
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900 rounded-lg overflow-auto">
+    <div className="h-full flex flex-col bg-white rounded-lg overflow-auto">
       <div className="flex justify-between items-center p-2 border-b">
         <h2 className="text-lg font-bold">Conversation Insights</h2>
         <button 
           onClick={onClose}
-          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800"
+          className="p-1 rounded hover:bg-gray-200"
           title="Close board"
         >
           ✕

@@ -18,13 +18,18 @@ export interface ChatMessage {
 import { BoardCard } from '../components/Board';
 import { SystemMapData } from '../components/SystemMap/SystemMap';
 
+export interface PostItData {
+  text: string;
+  color?: string; // Color of the PostIt
+}
+
 export interface VerseComponent {
   id: string;
-  type: 'chat' | 'board' | 'systemMap';
+  type: 'chat' | 'board' | 'systemMap' | 'postIt';
   position: Position;
   size: Size;
   zIndex: number;
-  data?: Record<string, unknown>; // Additional component-specific data
+  data?: Record<string, unknown> | PostItData; // Additional component-specific data
 }
 
 export interface Verse {

@@ -206,8 +206,8 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
   return (
     <div className="flex flex-col h-full">
       {parentVerse && (
-        <div className="mb-2 p-2 bg-blue-50 dark:bg-blue-950 text-xs rounded">
-          <p className="text-blue-600 dark:text-blue-300 font-medium">
+        <div className="mb-2 p-2 bg-blue-50 text-xs rounded">
+          <p className="text-blue-600 font-medium">
             Branched from verse {parentVerse.id.slice(0, 4)}
           </p>
         </div>
@@ -216,7 +216,7 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
       <div className="flex-1 overflow-y-auto space-y-2">
         {/* Show API key error message if present */}
         {apiError && (
-          <div className="mx-auto p-2 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded-lg mb-2 text-xs">
+          <div className="mx-auto p-2 bg-red-100 text-red-800 rounded-lg mb-2 text-xs">
             <div className="font-medium">API Key Error</div>
             <p>{apiError}</p>
             <button 
@@ -225,7 +225,7 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
                 const event = new CustomEvent('openApiConfig');
                 window.dispatchEvent(event);
               }}
-              className="mt-1 px-2 py-1 bg-red-200 dark:bg-red-800 hover:bg-red-300 dark:hover:bg-red-700 rounded-md text-xs"
+              className="mt-1 px-2 py-1 bg-red-200 hover:bg-red-300 rounded-md text-xs"
             >
               Configure API Key
             </button>
@@ -233,8 +233,8 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
         )}
         
         {chatHistory.filter(msg => msg.role !== 'system').length === 0 ? (
-          <div className="text-center text-gray-500 dark:text-gray-400 py-3 text-xs">
-            Start a conversation
+          <div className="text-center text-gray-500 py-3 text-xs">
+            {verse?.parentId ? 'Pick up the conversation' : 'Start a conversation'}
           </div>
         ) : (
           chatHistory
@@ -244,8 +244,8 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
                 key={message.id || index}
                 className={`p-2 rounded-lg max-w-[85%] text-xs leading-tight relative ${
                   message.role === 'user'
-                    ? 'bg-blue-500 dark:bg-blue-700 ml-auto text-white'
-                    : 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                    ? 'bg-blue-500 ml-auto text-white'
+                    : 'bg-gray-200 text-gray-900'
                 }`}
                 onMouseEnter={() => message.id && setHoveredMessageId(message.id)}
                 onMouseLeave={() => setHoveredMessageId(null)}
@@ -254,7 +254,7 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
                 {message.role !== 'system' && message.id && hoveredMessageId === message.id && (
                   <div className="absolute -left-7 top-1/2 transform -translate-y-1/2 flex items-center justify-center">
                     <button
-                      className="p-1 rounded-full bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300 shadow-sm"
+                      className="p-1 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 shadow-sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         // Use the dedicated handler
@@ -278,7 +278,7 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
                   {message.role === 'user' ? (
                     <div className="whitespace-pre-wrap">{message.content}</div>
                   ) : (
-                    <div className="markdown prose-xs dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5">
+                    <div className="markdown prose-xs max-w-none prose-p:my-1 prose-headings:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {message.content}
                       </ReactMarkdown>
@@ -289,7 +289,7 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
                   {message.id && (
                     <div className={`flex justify-end mt-1 ${hoveredMessageId === message.id ? 'opacity-100' : 'opacity-0'} transition-opacity`}>
                       <button
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300"
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-blue-100 hover:bg-blue-200 text-blue-700"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (message.id) {
@@ -312,7 +312,7 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
             ))
         )}
         {isLoading && (
-          <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse text-xs">
+          <div className="p-2 rounded-lg bg-gray-100 animate-pulse text-xs">
             AI is thinking...
           </div>
         )}
@@ -320,7 +320,7 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
       </div>
       
       <form onSubmit={handleSubmit} className="mt-auto pt-1">
-        <div className="flex items-end border dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900">
+        <div className="flex items-end border rounded-lg overflow-hidden bg-white">
           <textarea
             value={inputValue}
             onChange={handleInputChange}
