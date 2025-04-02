@@ -147,19 +147,37 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
       }
       
       // Make API call to our backend route with API key
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: messagesToSend,
-          context,
-          systemPrompt,
-          apiKey, // Include the API key in the request
-          model: verseModelId // Include the verse's model ID
-        }),
-      });
+      // Set up fetch with timeout (55 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 55000);
+      
+      let response;
+      try {
+        response = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: messagesToSend,
+            context,
+            systemPrompt,
+            apiKey, // Include the API key in the request
+            model: verseModelId // Include the verse's model ID
+          }),
+          signal: controller.signal
+        });
+        
+        // Clear the timeout if the request completes
+        clearTimeout(timeoutId);
+      } catch (error) {
+        // Check if it's an AbortError (timeout)
+        if (error instanceof Error && error.name === 'AbortError') {
+          setApiError('The request timed out. Please try a shorter message or try again later.');
+          throw new Error('Client timeout');
+        }
+        throw error;
+      }
       
       if (!response.ok) {
         // Parse error response
@@ -170,6 +188,14 @@ export default function ChatWindow({ verseId }: ChatWindowProps) {
           // Authentication error - likely API key issue
           setApiError(errorData.error || 'API key error. Please check your API key in settings.');
           throw new Error('API key error');
+        } else if (response.status === 504 || response.status === 408) {
+          // Timeout errors
+          setApiError('The request timed out. Please try a shorter message or try again later.');
+          throw new Error('Request timeout');
+        } else if (response.status === 500) {
+          // Server errors
+          setApiError('Server error. Please try again later or check your Vercel logs.');
+          throw new Error('Server error');
         } else {
           // Other errors
           throw new Error(errorData.error || 'Failed to get response from Claude');

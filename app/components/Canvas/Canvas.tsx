@@ -548,9 +548,7 @@ export default function Canvas() {
                 placeholder="Enter the API secret..."
               />
               <div className="text-xs text-gray-500 mt-1">
-                Enter the API secret provided by your administrator.
-                <br />
-                This must match the API_SECRET environment variable set in Vercel.
+                Enter the API secret                
               </div>
             </div>
             <div className="flex justify-end pt-2 gap-2">

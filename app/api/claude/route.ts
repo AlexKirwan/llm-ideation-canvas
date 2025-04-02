@@ -96,11 +96,29 @@ Format your responses using Markdown:
 
     // Make API call to Claude with user-provided API key
     try {
-      const response = await anthropic.messages.create(payload);
+      // Set a timeout for the Claude API call (50 seconds - leaving buffer for Vercel's 60s limit)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 50000);
+      
+      const response = await anthropic.messages.create(payload, {
+        signal: controller.signal as any
+      });
+      
+      // Clear the timeout if the request completes successfully
+      clearTimeout(timeoutId);
+      
       // Return Claude's response if successful
       return NextResponse.json(response);
     } catch (anthropicError) {
       console.error('Error from Claude API:', anthropicError);
+      
+      // Check if it's an AbortError (timeout)
+      if (anthropicError instanceof Error && anthropicError.name === 'AbortError') {
+        return NextResponse.json(
+          { error: 'The request to Claude API timed out. Please try again with a shorter message.' },
+          { status: 504 }
+        );
+      }
       
       // Check for authentication errors specifically
       if (anthropicError instanceof Error) {
